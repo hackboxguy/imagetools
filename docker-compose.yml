@@ -1,0 +1,8 @@
+services:
+  imagetools:
+    #build: .
+    image: hackboxguy/imagetools:latest
+    container_name: imagetools
+    volumes:
+      - ./data:/data
+    #command: --inputcsv=/data/meas1.csv --reference=ntsc --output=/data/output1.jpg
