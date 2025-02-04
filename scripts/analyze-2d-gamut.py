@@ -22,9 +22,14 @@ REFERENCE_GAMUTS = {
         'white': np.array([0.3127, 0.3290]),  # D65
         'label': 'sRGB'
     },
+    #'dcip3': {
+    #    'primaries': np.array([[0.68, 0.32], [0.265, 0.69], [0.15, 0.06]]),
+    #    'white': np.array([0.314, 0.351]),    # DCI White
+    #    'label': 'DCI-P3'
+    #},
     'dcip3': {
         'primaries': np.array([[0.68, 0.32], [0.265, 0.69], [0.15, 0.06]]),
-        'white': np.array([0.314, 0.351]),    # DCI White
+        'white': np.array([0.3127, 0.3290]),  # D65 is the standard white point for DCI-P3-D65
         'label': 'DCI-P3'
     },
     'rec709': {
@@ -91,6 +96,7 @@ def main():
     parser.add_argument('--reference', required=True, 
                        choices=REFERENCE_GAMUTS.keys(), help='Reference standard')
     parser.add_argument('--output', help='Output plot filename (jpg/png/pdf)')
+    parser.add_argument('--title', help='Custom title for the plot')
     args = parser.parse_args()
 
     try:
@@ -153,12 +159,12 @@ def main():
         # Plot reference gamut
         ax.add_patch(Polygon(
             r_points, closed=True, fill=False,
-            edgecolor='white', linewidth=2, linestyle='--',
+            edgecolor='gray', linewidth=2, linestyle='--',
             label=f'{ref["label"]} ({r_area:.3f})'
         ))
 
         # Plot white points
-        ax.plot(w_measured[0], w_measured[1], 'bo', markersize=10,
+        ax.plot(w_measured[0], w_measured[1], 'bx', markersize=10,
                label=f'Measured White ({w_measured[0]:.3f}, {w_measured[1]:.3f})')
         ax.plot(w_reference[0], w_reference[1], 'rx', markersize=10,
                label=f'Reference White ({w_reference[0]:.3f}, {w_reference[1]:.3f})')
@@ -177,7 +183,9 @@ def main():
 
         # Finalize plot
         ax.legend(loc='upper right', bbox_to_anchor=(1.0, 1.0))
-        plt.title('Color Gamut Analysis on CIE 1931 Diagram')
+        title = args.title if args.title else 'Color Gamut Analysis on CIE 1931 Diagram'
+        plt.title(title)
+        #plt.title('Color Gamut Analysis on CIE 1931 Diagram')
         plt.tight_layout()
 
         # Save or show plot
