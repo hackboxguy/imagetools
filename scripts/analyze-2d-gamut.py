@@ -10,6 +10,8 @@ from matplotlib.patches import Polygon
 from shapely.geometry import Polygon as ShapelyPolygon
 import colour
 from colour.plotting import plot_chromaticity_diagram_CIE1931
+from matplotlib.patches import Ellipse
+import numpy as np
 
 REFERENCE_GAMUTS = {
     'ntsc': {
@@ -43,6 +45,31 @@ REFERENCE_GAMUTS = {
         'label': 'Rec.2020'
     }
 }
+
+def analyze_white_point(ax, w_measured, w_reference, tolerance):
+    """
+    Analyze and visualize white point tolerance
+    Returns True if measured point is within tolerance ellipse
+    """
+    # Convert tolerance to major/minor axes of ellipse
+    # Using approximation based on MacAdam ellipses - y-axis sensitivity is roughly 3x x-axis
+    major_axis = tolerance *1.2
+    minor_axis = tolerance #/ 3  # x-axis tolerance is smaller due to higher sensitivity
+    # Minimal rotation to keep it more standard
+    rotation_angle = -10
+    # Create and add tolerance ellipse
+    ellipse = Ellipse(xy=w_reference, width=major_axis*2, height=minor_axis*2,
+                      angle=rotation_angle, fill=False, color='gray', linestyle=':',
+                      label=f'Tolerance (±{tolerance:.3f})')
+    ax.add_patch(ellipse)
+    # Calculate if measured point is within ellipse
+    dx = w_measured[0] - w_reference[0]
+    dy = w_measured[1] - w_reference[1]
+    # Check if point is within ellipse using normalized coordinates
+    is_within = (dx/minor_axis)**2 + (dy/major_axis)**2 <= 1
+    # Calculate distance in terms of tolerance units
+    distance = np.sqrt((dx/minor_axis)**2 + (dy/major_axis)**2)
+    return is_within, distance
 
 def validate_xy_coordinates(x, y):
     """Validate if xy coordinates are within valid chromaticity range"""
@@ -97,6 +124,8 @@ def main():
                        choices=REFERENCE_GAMUTS.keys(), help='Reference standard')
     parser.add_argument('--output', help='Output plot filename (jpg/png/pdf)')
     parser.add_argument('--title', help='Custom title for the plot')
+    parser.add_argument('--whitepointtol', type=float,
+                   help='White point tolerance (if not specified, tolerance visualization is skipped)')
     args = parser.parse_args()
 
     try:
@@ -175,6 +204,19 @@ def main():
                     f'Relative Area: {relative_area:.1f}%\n'
                     f'White Point Δx: {delta_x:+.4f}\n'
                     f'White Point Δy: {delta_y:+.4f}')
+
+        # Add tolerance analysis only if --whitepointtol is provided
+        if args.whitepointtol is not None:
+            is_within, distance = analyze_white_point(ax, w_measured, w_reference, args.whitepointtol)
+            info_text += f'\nWhite Point Distance: {distance:.3f}x tolerance\n'
+            status_text = 'Pass' if is_within else 'Fail'
+            status_color = 'g' if is_within else 'r'  # 'g' for green, 'r' for red
+            info_text += f'Within Tolerance: {"Yes" if is_within else "No"}'
+            print("\nWhite Point Tolerance Analysis:")
+            print(f"Tolerance Setting: ±{args.whitepointtol:.3f}")
+            print(f"Distance (in tolerance units): {distance:.3f}")
+            print(f"Within Tolerance: {'Yes' if is_within else 'No'}")
+
         plt.text(0.02, 0.98,
                 info_text,
                 transform=ax.transAxes, fontsize=10,
@@ -185,7 +227,6 @@ def main():
         ax.legend(loc='upper right', bbox_to_anchor=(1.0, 1.0))
         title = args.title if args.title else 'Color Gamut Analysis on CIE 1931 Diagram'
         plt.title(title)
-        #plt.title('Color Gamut Analysis on CIE 1931 Diagram')
         plt.tight_layout()
 
         # Save or show plot
