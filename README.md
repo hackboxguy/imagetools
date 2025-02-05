@@ -2,6 +2,10 @@
 
 **imagetools** is a collection of Python scripts for analyzing display performance based on xy color coordinates.
 
+For simplicity and ease of use, **imagetools** (along with all source files) is available as a ready-to-use Docker container on Docker Hub. This container includes all necessary Python module dependencies. The instructions below assume that you have Docker installed before running the commands.
+
+If you prefer not to use Docker, you can run the Python scripts directly from the scripts folder. Ensure that all required Python modules are installed before execution.
+
 ## How to Use This Repository
 
 ### 1. Clone the Repository
