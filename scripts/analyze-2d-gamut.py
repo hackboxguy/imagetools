@@ -120,6 +120,7 @@ def process_measurements(df):
 def main():
     parser = argparse.ArgumentParser(description='Color Gamut Analyzer')
     parser.add_argument('--inputcsv', required=True, help='Measurement CSV file')
+    parser.add_argument('--inputcsvcold', help='Cold measurement CSV file (optional, initial startup)')
     parser.add_argument('--reference', required=True, 
                        choices=REFERENCE_GAMUTS.keys(), help='Reference standard')
     parser.add_argument('--output', help='Output plot filename (jpg/png/pdf)')
@@ -145,6 +146,14 @@ def main():
         measured = process_measurements(df)
         ref = REFERENCE_GAMUTS[args.reference]
         
+        # Process cold measurements if provided
+        cold_measured = None
+        if args.inputcsvcold:
+            df_cold = pd.read_csv(args.inputcsvcold)
+            if not required_columns.issubset(df_cold.columns):
+                raise ValueError(f"Cold measurement CSV must contain columns: {required_columns}")
+            cold_measured = process_measurements(df_cold)
+
         # Create figure
         plt.close('all')
         fig = plt.figure(figsize=(10, 10))
@@ -178,12 +187,33 @@ def main():
         delta_x = w_measured[0] - w_reference[0]
         delta_y = w_measured[1] - w_reference[1]
 
-        # Plot measured gamut
+        # Plot warm measured gamut
         ax.add_patch(Polygon(
             m_points, closed=True, fill=False,
-            edgecolor='black', linewidth=2,
+            edgecolor='black', linewidth=2, linestyle='--',
             label=f'Measured ({m_area:.3f})'
         ))
+
+        # Plot cold measured gamut(if available)
+        if cold_measured:
+            c_points = [(float(cold_measured[c][0]), float(cold_measured[c][1]))
+                       for c in ['R', 'G', 'B']]
+            c_area = calculate_area(c_points)
+            c_poly = ShapelyPolygon(c_points)
+            c_overlap = c_poly.intersection(poly2)
+            c_coverage = c_overlap.area / r_area * 100 if not c_overlap.is_empty else 0
+            c_relative_area = (c_area / r_area) * 100
+            # Plot cold gamut
+            ax.add_patch(Polygon(
+                c_points, closed=True, fill=False,
+                edgecolor='blue', linewidth=2, linestyle='--',
+                label=f'Measured Cold ({c_area:.3f})'
+            ))
+            # Plot cold white point
+            #w_cold = cold_measured['W']
+            #ax.plot(w_cold[0], w_cold[1], 'bx', markersize=8,
+            #       label=f'Cold White ({w_cold[0]:.3f}, {w_cold[1]:.3f})')
+
 
         # Plot reference gamut
         ax.add_patch(Polygon(
@@ -193,10 +223,14 @@ def main():
         ))
 
         # Plot white points
-        ax.plot(w_measured[0], w_measured[1], 'bx', markersize=10,
+        ax.plot(w_measured[0], w_measured[1], 'kx', markersize=10,
                label=f'Measured White ({w_measured[0]:.3f}, {w_measured[1]:.3f})')
-        ax.plot(w_reference[0], w_reference[1], 'rx', markersize=10,
+        ax.plot(w_reference[0], w_reference[1], 'x',color='grey', markersize=10,
                label=f'Reference White ({w_reference[0]:.3f}, {w_reference[1]:.3f})')
+        if cold_measured:
+            w_cold = cold_measured['W']
+            ax.plot(w_cold[0], w_cold[1], 'bx', markersize=8,
+                   label=f'Cold White ({w_cold[0]:.3f}, {w_cold[1]:.3f})')
 
         # Add info box
         info_text = (f'Coverage: {coverage:.1f}%\n'
@@ -204,6 +238,14 @@ def main():
                     f'Relative Area: {relative_area:.1f}%\n'
                     f'White Point Δx: {delta_x:+.4f}\n'
                     f'White Point Δy: {delta_y:+.4f}')
+
+        # Add cold measurements to info text
+        if cold_measured:
+            info_text += f'\nCold Measurements:'
+            info_text += f'\nCoverage: {c_coverage:.1f}%'
+            info_text += f'\nRelative Area: {c_relative_area:.1f}%'
+            info_text += f'\nWhite Point Δx: {w_cold[0]-w_reference[0]:+.4f}'
+            info_text += f'\nWhite Point Δy: {w_cold[1]-w_reference[1]:+.4f}'
 
         # Add tolerance analysis only if --whitepointtol is provided
         if args.whitepointtol is not None:
@@ -216,6 +258,16 @@ def main():
             print(f"Tolerance Setting: ±{args.whitepointtol:.3f}")
             print(f"Distance (in tolerance units): {distance:.3f}")
             print(f"Within Tolerance: {'Yes' if is_within else 'No'}")
+
+        if cold_measured:
+            # Add to numerical analysis output
+            print("\nCold Measurement Analysis:")
+            print(f"Coverage: {c_coverage:.1f}%")
+            print(f"Relative Area: {c_relative_area:.1f}%")
+            print("\nCold White Point Analysis:")
+            print(f"Cold White: ({w_cold[0]:.4f}, {w_cold[1]:.4f})")
+            print(f"Δx: {w_cold[0]-w_reference[0]:+.4f}")
+            print(f"Δy: {w_cold[1]-w_reference[1]:+.4f}")
 
         plt.text(0.02, 0.98,
                 info_text,
