@@ -138,7 +138,7 @@ def main():
         
         # Load and validate data
         df = pd.read_csv(args.inputcsv)
-        required_columns = {'Color', 'x', 'y'}
+        required_columns = {'Color', 'x', 'y','Y'}
         if not required_columns.issubset(df.columns):
             raise ValueError(f"CSV must contain columns: {required_columns}")
         
@@ -232,8 +232,10 @@ def main():
             ax.plot(w_cold[0], w_cold[1], 'bx', markersize=8,
                    label=f'Cold White ({w_cold[0]:.3f}, {w_cold[1]:.3f})')
 
+        w_luminance = df.loc[df['Color'] == 'W', 'Y'].values[0]
         # Add info box
-        info_text = (f'Coverage: {coverage:.1f}%\n'
+        info_text = (f'Luminance: {w_luminance:.1f} cd/m²\n'
+                    f'Coverage: {coverage:.1f}%\n'
                     f'Overlap Area: {overlap.area:.3f}\n'
                     f'Relative Area: {relative_area:.1f}%\n'
                     f'White Point Δx: {delta_x:+.4f}\n'
@@ -241,7 +243,9 @@ def main():
 
         # Add cold measurements to info text
         if cold_measured:
+            w_luminancecold = df_cold.loc[df_cold['Color'] == 'W', 'Y'].values[0]
             info_text += f'\nCold Measurements:'
+            info_text += f'\nLuminance: {w_luminancecold:.1f} cd/m²'
             info_text += f'\nCoverage: {c_coverage:.1f}%'
             info_text += f'\nRelative Area: {c_relative_area:.1f}%'
             info_text += f'\nWhite Point Δx: {w_cold[0]-w_reference[0]:+.4f}'
@@ -262,6 +266,7 @@ def main():
         if cold_measured:
             # Add to numerical analysis output
             print("\nCold Measurement Analysis:")
+            print(f"Luminance: {w_luminancecold:.1f} cd/m²")
             print(f"Coverage: {c_coverage:.1f}%")
             print(f"Relative Area: {c_relative_area:.1f}%")
             print("\nCold White Point Analysis:")
@@ -296,6 +301,7 @@ def main():
         print(f"Overlap Area: {overlap.area:.6f}")
         print(f"Coverage: {coverage:.1f}%")
         print(f"Relative Area: {relative_area:.1f}%")
+        print(f"Luminance: {w_luminance:.1f} cd/m²%")
         print("\nWhite Point Analysis:")
         print(f"Measured White: ({w_measured[0]:.4f}, {w_measured[1]:.4f})")
         print(f"Reference White: ({w_reference[0]:.4f}, {w_reference[1]:.4f})")
